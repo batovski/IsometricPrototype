@@ -28,6 +28,11 @@ void ABasicHex::Tick(float DeltaTime)
 
 }
 
+bool ABasicHex::isHexBlocked()
+{
+	return isBlocked;
+}
+
 FVector ABasicHex::GetHexMiddlePoint()
 {
 	FVector Min;

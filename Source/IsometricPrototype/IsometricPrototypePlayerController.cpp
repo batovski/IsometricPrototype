@@ -5,6 +5,8 @@
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "IsometricPrototypeCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "PathfindingAStar.h"
 #include "Engine/World.h"
 
 AIsometricPrototypePlayerController::AIsometricPrototypePlayerController()
@@ -22,6 +24,11 @@ void AIsometricPrototypePlayerController::PlayerTick(float DeltaTime)
 	{
 		MoveToMouseCursor();
 	}
+}
+void AIsometricPrototypePlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	Pathfinder = Cast<APathfindingAStar>(UGameplayStatics::GetActorOfClass(GetWorld(), APathfindingAStar::StaticClass()));
 }
 
 void AIsometricPrototypePlayerController::SetupInputComponent()
@@ -49,7 +56,7 @@ void AIsometricPrototypePlayerController::MoveToMouseCursor()
 	{
 		if (MyPawn->GetCursorToWorld())
 		{
-			UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, MyPawn->GetCursorToWorld()->GetComponentLocation());
+			SetNewMoveDestination(MyPawn->GetCursorToWorld()->GetComponentLocation());
 		}
 	}
 }
@@ -73,12 +80,13 @@ void AIsometricPrototypePlayerController::SetNewMoveDestination(const FVector De
 	APawn* const MyPawn = GetPawn();
 	if (MyPawn)
 	{
-		float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
-
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if ((Distance > 2.0f))
+		//float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
+		TArray<FVector> path = Pathfinder->FindPath(MyPawn->GetActorLocation(), DestLocation);
+		for(int i = 0; i < path.Num(); i++)
 		{
-			UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, DestLocation);
+			UE_LOG(LogTemp, Warning, TEXT("INDEX: %d (%f,%f)"),i,path[i].X, path[i].Y);
 		}
+		// We need to issue move command only if far enough in order for walk animation to play correctly
+		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, DestLocation);
 	}
 }

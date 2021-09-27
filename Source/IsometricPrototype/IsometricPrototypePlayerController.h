@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "IsometricPrototypePlayerController.generated.h"
 
+class APathfindingAStar;
+
 UCLASS()
 class AIsometricPrototypePlayerController : public APlayerController
 {
@@ -34,6 +36,11 @@ protected:
 	
 	/** Navigate player to the given world location. */
 	void SetNewMoveDestination(const FVector DestLocation);
+
+	void BeginPlay();
+
+private:
+	APathfindingAStar* Pathfinder;
 };
 
 

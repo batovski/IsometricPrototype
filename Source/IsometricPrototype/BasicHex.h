@@ -21,10 +21,15 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+private:
+	UPROPERTY(EditAnywhere, Category = "Hex Settings")
+	bool isBlocked = false;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	FVector GetHexMiddlePoint();
+	bool isHexBlocked();
 private:
 	UPROPERTY(EditAnywhere)
 	UStaticMeshComponent* Mesh;
