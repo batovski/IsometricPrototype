@@ -101,7 +101,7 @@ void APathfindingAStar::RelocateGrid()
 
 void APathfindingAStar::CheckTheCollision()
 {
-	float RayLength = 80.0;
+	float RayLength = 240.0;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(this);
 
@@ -124,6 +124,7 @@ void APathfindingAStar::CheckTheCollision()
 					{
 						QuadGrid[i][j]->position = Hex->GetHexMiddlePoint();
 						QuadGrid[i][j]->isBlocked = Hex->isHexBlocked();
+						UE_LOG(LogTemp, Warning, TEXT("Create: (%f,%f)"), QuadGrid[i][j]->position.X, QuadGrid[i][j]->position.Y);
 					}
 				}
 			}
@@ -160,8 +161,9 @@ TArray<FVector> APathfindingAStar::FindPath(FVector start, FVector end)
 {
 	TArray<FVector> empty;
 	FVector startPos = isPosValid(start);
-	if (end == startPos || startPos == FVector::ZeroVector)
+	if (end == startPos || startPos == FVector::ZeroVector) {
 		return empty;
+	}
 
 	ResetQuadsInfo();
 

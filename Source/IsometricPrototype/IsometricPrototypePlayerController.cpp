@@ -100,6 +100,10 @@ void AIsometricPrototypePlayerController::SetNewMoveDestination(const FVector De
 		{
 			//float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
 			CurrentPath = Pathfinder->FindPath(PlayerPawn->GetActorLocation(), DestLocation);
+			for(int i = 0; i < CurrentPath.Num(); i++)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Walk to: (%f,%f)"), CurrentPath[i].X, CurrentPath[i].Y);
+			}
 			if (CurrentPath.Num() > 0)
 			{
 				MovingState = EMovingState::moving;

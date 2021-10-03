@@ -31,7 +31,7 @@ private:
 	float CellSize = 50.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Navigation")
-	float SpacingX = 180.0;
+	float SpacingX = 174.0;
 
 	UPROPERTY(EditAnywhere, Category = "Navigation")
 	float SpacingY = 200.0;
