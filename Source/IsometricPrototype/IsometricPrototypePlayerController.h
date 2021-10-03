@@ -7,6 +7,7 @@
 #include "IsometricPrototypePlayerController.generated.h"
 
 class APathfindingAStar;
+class APawn;
 
 UCLASS()
 class AIsometricPrototypePlayerController : public APlayerController
@@ -39,8 +40,20 @@ protected:
 
 	void BeginPlay();
 
+	enum EMovingState
+	{
+		idle = 0,
+		moving,
+	};
+
+	int32 CurrentPathIndex;
+	float NextPointDestance;
+	EMovingState MovingState;
+
 private:
 	APathfindingAStar* Pathfinder;
+	TArray<FVector> CurrentPath;
+	APawn* PlayerPawn;
 };
 
 

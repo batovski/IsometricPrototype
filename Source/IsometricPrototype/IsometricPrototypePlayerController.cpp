@@ -13,22 +13,39 @@ AIsometricPrototypePlayerController::AIsometricPrototypePlayerController()
 {
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
+	MovingState = EMovingState::idle;
+	CurrentPathIndex = 0;
+	NextPointDestance = 60.f;
 }
 
 void AIsometricPrototypePlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 
-	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
+	if (MovingState == EMovingState::moving)
 	{
-		MoveToMouseCursor();
+		if (FVector::Dist2D(PlayerPawn->GetActorLocation(), CurrentPath[CurrentPathIndex]) < NextPointDestance)
+		{
+			CurrentPathIndex++;
+			if (CurrentPathIndex >= CurrentPath.Num())
+			{
+				CurrentPathIndex = 0;
+				CurrentPath.Empty();
+				MovingState = EMovingState::idle;
+				Pathfinder->RelocateGrid();
+			}
+			else
+			{
+				UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CurrentPath[CurrentPathIndex]);
+			}
+		}
 	}
 }
 void AIsometricPrototypePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	Pathfinder = Cast<APathfindingAStar>(UGameplayStatics::GetActorOfClass(GetWorld(), APathfindingAStar::StaticClass()));
+	PlayerPawn = GetPawn();
 }
 
 void AIsometricPrototypePlayerController::SetupInputComponent()
@@ -77,16 +94,18 @@ void AIsometricPrototypePlayerController::MoveToTouchLocation(const ETouchIndex:
 
 void AIsometricPrototypePlayerController::SetNewMoveDestination(const FVector DestLocation)
 {
-	APawn* const MyPawn = GetPawn();
-	if (MyPawn)
+	if (PlayerPawn)
 	{
-		//float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
-		TArray<FVector> path = Pathfinder->FindPath(MyPawn->GetActorLocation(), DestLocation);
-		for(int i = 0; i < path.Num(); i++)
+		if (MovingState != EMovingState::moving)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("INDEX: %d (%f,%f)"),i,path[i].X, path[i].Y);
+			//float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
+			CurrentPath = Pathfinder->FindPath(PlayerPawn->GetActorLocation(), DestLocation);
+			if (CurrentPath.Num() > 0)
+			{
+				MovingState = EMovingState::moving;
+				CurrentPathIndex = 1;
+				UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, CurrentPath[CurrentPathIndex]);
+			}
 		}
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, DestLocation);
 	}
 }

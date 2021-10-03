@@ -23,12 +23,16 @@ FQuad::FQuad(bool _blocked, int _h, int _g)
 	isBlocked = _blocked;
 	h = _h;
 	g = _g;
+	GridX = 0;
+	GridY = 0;
 }
 FQuad::FQuad()
 {
 	parent = nullptr;
 	position = FVector();
 	isBlocked = false;
+	GridX = 0;
+	GridY = 0;
 	h = 0;
 	g = 0;
 }
@@ -43,13 +47,17 @@ void APathfindingAStar::BeginPlay()
 
 	CreateGrid();
 }
-
 void APathfindingAStar::CreateGrid()
 {
-	direction = {
-		FVector(-1*SpacingX, 1*Offset, 0), FVector(1 * SpacingX, 1 * Offset ,0),
-		FVector(0, 1* SpacingY, 0), FVector(-1 * SpacingX, 1 * Offset, 0),
-		FVector(-1 * SpacingX, -1 * Offset, 0), FVector(0, -1* SpacingY, 0)
+	directionOdd = {
+		FVector(-1, -1, 0), FVector( -1, 0, 0),
+		FVector(1, -1, 0), FVector(1, 0, 0),
+		FVector(0, 1, 0), FVector(-1, 0, 0)
+	};
+	directionEven = {
+		FVector(-1, 0, 0), FVector(0, -1, 0),
+		FVector(1, 0, 0), FVector(1, 1, 0),
+		FVector(0, 1, 0), FVector(-1, 1, 0)
 	};
 	QuadGrid.Reserve(SizeX);
 	for (int i = 0; i < SizeX; ++i)
@@ -60,6 +68,8 @@ void APathfindingAStar::CreateGrid()
 		for (int j = 0; j < SizeY; ++j)
 		{
 			FQuad* newQuad = new FQuad(false, 0, 0);
+			newQuad->GridX = i;
+			newQuad->GridY = j;
 			QuadGrid[i].Add(newQuad);
 		}
 	}
@@ -79,10 +89,10 @@ void APathfindingAStar::RelocateGrid()
 		for (int j = 0; j < SizeY; ++j)
 		{
 			if (i % 2 == 0)
-				QuadGrid[i][j]->position = GetActorLocation() + FVector(SpacingX * i, SpacingY * j + CellSize/2, 0);
+				QuadGrid[i][j]->position = GetActorLocation() + FVector(SpacingX * i, SpacingY * j + CellSize / 2, 0);
 			else
 			{
-				QuadGrid[i][j]->position = GetActorLocation() + FVector(SpacingX * i, SpacingY * j + Offset+ CellSize / 2, 0);
+				QuadGrid[i][j]->position = GetActorLocation() + FVector(SpacingX * i, SpacingY * j + Offset + CellSize / 2, 0);
 			}
 		}
 	}
@@ -101,9 +111,9 @@ void APathfindingAStar::CheckTheCollision()
 		{
 			FHitResult Hit;
 			FVector StartLocation = QuadGrid[i][j]->position;
-			FVector EndLocation = StartLocation + (FVector(0,0,-1) * RayLength);
+			FVector EndLocation = StartLocation + (FVector(0, 0, -1) * RayLength);
 			bool isHit = GetWorld()->LineTraceSingleByChannel(Hit, StartLocation, EndLocation, ECollisionChannel::ECC_Visibility, CollisionParams);
-			DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Green, true, -1, 0, 1.f);
+			DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Green, true, 5, 0, 1.f);
 			if (isHit)
 			{
 				AActor* quad = Hit.GetActor();
@@ -114,7 +124,6 @@ void APathfindingAStar::CheckTheCollision()
 					{
 						QuadGrid[i][j]->position = Hex->GetHexMiddlePoint();
 						QuadGrid[i][j]->isBlocked = Hex->isHexBlocked();
-						UE_LOG(LogTemp, Warning, TEXT("Satrt %f, %f:"), QuadGrid[i][j]->position.X, QuadGrid[i][j]->position.Y);
 					}
 				}
 			}
@@ -126,6 +135,7 @@ void APathfindingAStar::CheckTheCollision()
 void APathfindingAStar::DeleteGrid()
 {
 	//TODO: do i need clean up the meamory?
+	QuadGrid.Empty();
 }
 
 int FQuad::getScore()
@@ -149,7 +159,8 @@ void APathfindingAStar::ResetQuadsInfo()
 TArray<FVector> APathfindingAStar::FindPath(FVector start, FVector end)
 {
 	TArray<FVector> empty;
-	if (start == end || !isQuadValid(start))
+	FVector startPos = isPosValid(start);
+	if (end == startPos || startPos == FVector::ZeroVector)
 		return empty;
 
 	ResetQuadsInfo();
@@ -159,7 +170,7 @@ TArray<FVector> APathfindingAStar::FindPath(FVector start, FVector end)
 	TArray<FQuad*> openSet, closedSet;
 	openSet.Reserve(SizeX * SizeY);
 	closedSet.Reserve(SizeX * SizeY);
-	auto first = GetQuad(start);
+	auto first = GetQuad(startPos);
 
 	if (first != nullptr)
 	{
@@ -168,68 +179,109 @@ TArray<FVector> APathfindingAStar::FindPath(FVector start, FVector end)
 	while (openSet.Num() != 0)
 	{
 		int it_index = 0;
-		current = *openSet.begin();
+		current = openSet[0];
 
 		for (int i = 0; i < openSet.Num(); i++) {
 			auto node = openSet[i];
-			if (node->getScore() <= current->getScore()) {
+			if (node->getScore() < current->getScore()) {
 				current = node;
 				it_index = i;
 			}
-		}
-
-		if (current->position.X == end.X && current->position.Y == end.Y) {
-			break;
+			
+			else if(node->getScore() == current->getScore()) {
+				if (node->h < current->h)
+				{
+					current = node;
+					it_index = i;
+				}
+			}
 		}
 
 		closedSet.Push(current);
 		openSet.RemoveAt(it_index);
 
-		for (int i = 0; i < directions; ++i) {
-			FVector newCoordinates = current->position + direction[i];
+		TArray<FVector> direction;
+		if (current->GridX % 2 == 0)
+			direction = directionOdd;
+		else
+			direction = directionEven;
 
-			int totalCost = current->g + CellSize;
-
-			FQuad* successor = findNodeOnList(openSet, newCoordinates);
-			if (successor == nullptr) {
-				successor = GetQuad(newCoordinates);
-				if (successor)
+		for (int i = 0; i < direction.Num(); i++)
+		{
+			//Is valid?
+			if (isQuadValid(current->GridX + direction[i].X, current->GridY + direction[i].Y))
+			{
+				FQuad* successor = QuadGrid[current->GridX + direction[i].X][current->GridY + direction[i].Y];
+				if (successor->position.X == end.X && successor->position.Y == end.Y)
 				{
-					successor->g = totalCost;
+					successor->parent = current;
+					return CreatePath(successor);
+				}
+
+				FQuad* quad = findNodeOnList(openSet, successor->position);
+				if (quad != nullptr && quad->getScore() < current->getScore())
+					continue;
+
+				//Update existing
+				else if (quad != nullptr) {
+					successor->g = current->g + CellSize;
 					successor->h = calculateH(successor->position, end);
+					successor->parent = current;
+					UE_LOG(LogTemp, Warning, TEXT("Rewrite: (%f,%f)"), successor->position.X, successor->position.Y);
+				}
+				//Create A new one or Update the exsisting one
+				else if (findNodeOnList(closedSet, successor->position) == nullptr 
+					|| findNodeOnList(closedSet, successor->position) != nullptr &&
+					findNodeOnList(closedSet, successor->position)->getScore() > successor->getScore())
+				{
+					successor->g = current->g + CellSize;
+					successor->h = calculateH(successor->position, end);
+					successor->parent = current;
+					UE_LOG(LogTemp, Warning, TEXT("Create: (%f,%f)"), successor->position.X, successor->position.Y);
 					openSet.Push(successor);
 				}
 			}
-			else if (totalCost < successor->g) {
-				successor->parent = current;
-				successor->g = totalCost;
-				UE_LOG(LogTemp, Warning, TEXT("Called"));
-			}
-			else if(successor!= nullptr)
-				UE_LOG(LogTemp, Warning, TEXT("Called"));
 		}
 	}
-	
+	UE_LOG(LogTemp, Warning, TEXT("Could not find the path!"));
+	return empty;
+}
+
+TArray<FVector> APathfindingAStar::CreatePath(FQuad* current)
+{
 	TArray<FVector> path;
 	while (current != nullptr) {
-		path.Push(current->position);
+		path.Insert(current->position,0);
 		current = current->parent;
 	}
-	releaseQuads(openSet);
-	releaseQuads(closedSet);
 	return path;
 }
-bool APathfindingAStar::isQuadValid(FVector position)
+
+bool APathfindingAStar::isQuadValid(int x, int y)
 {
 	
-	if (position.X > QuadGrid[SizeX - 1][0]->position.X ||
-		position.Y > QuadGrid[0][SizeY - 1]->position.Y ||
-		position.X < QuadGrid[0][0]->position.X ||
-		position.Y < QuadGrid[0][0]->position.Y)
+	if (x < 0 || x >= SizeX || y < 0 || y >= SizeY)
 	{
 		return false;
 	}
+	if (QuadGrid[x][y]->isBlocked)
+		return false;
 	return true;
+}
+
+FVector APathfindingAStar::isPosValid(FVector position)
+{
+	for (int i = 0; i < SizeX; i++)
+	{
+		for (int j = 0; j < SizeY; j++)
+		{
+			if (QuadGrid[i][j]->position.X == position.X && QuadGrid[i][j]->position.Y == position.Y)
+				return QuadGrid[i][j]->position;
+			else if (FVector::Dist2D(QuadGrid[i][j]->position, position) < 100.f)
+				return QuadGrid[i][j]->position;
+		}
+	}
+	return FVector::ZeroVector;
 }
 
 FQuad* APathfindingAStar::findNodeOnList(TArray<FQuad*> list, FVector position)
@@ -245,7 +297,6 @@ void APathfindingAStar::releaseQuads(TArray<FQuad*> set)
 {
 	for (int i = 0; i < set.Num(); i++) {
 		auto quad = set[i];
-		set.RemoveAt(i);
 		delete quad;
 	}
 }
@@ -257,15 +308,14 @@ FVector APathfindingAStar::getDelta(FVector start, FVector end)
 
 int APathfindingAStar::calculateH(FVector start, FVector end)
 {
-	return ((double)sqrt(
-		(start.X - end.X) * (start.X - end.X)
-		+ (start.Y - end.Y) * (start.Y - end.Y)));
+	auto delta = std::move(getDelta(start, end));
+	return static_cast<int>(10 * sqrt(pow(delta.X, 2) + pow(delta.Y, 2)));
 }
 
 
 FQuad* APathfindingAStar::GetQuad(FVector position)
 {
-	for(int i = 0; i < SizeX; i++)
+	for (int i = 0; i < SizeX; i++)
 	{
 		for (int j = 0; j < SizeY; j++)
 		{

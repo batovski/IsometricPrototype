@@ -10,6 +10,7 @@
 
 class APawn;
 class USceneComponent;
+
 UCLASS()
 class ISOMETRICPROTOTYPE_API APathfindingAStar : public AActor
 {
@@ -47,12 +48,14 @@ private:
 	APawn* PlayerPawn;
 	USceneComponent* Base;
 	
-	TArray<FVector> direction;
+	TArray<FVector> directionOdd;
+	TArray<FVector> directionEven;
 	TArray<TArray<FQuad*>> QuadGrid;
 
 	void CreateGrid();
 	void DeleteGrid();
-	bool isQuadValid(FVector position);
+	bool isQuadValid(int x, int y);
+	FVector isPosValid(FVector position);
 	FQuad* GetQuad(FVector position);
 	FQuad* findNodeOnList(TArray<FQuad*> list, FVector position);
 	int calculateH(FVector start, FVector end);
@@ -60,6 +63,7 @@ private:
 	void releaseQuads(TArray<FQuad*> set);
 	void BeginPlay();
 
+	TArray<FVector> CreatePath(FQuad* current);
 	void CheckTheCollision();
 	void ResetQuadsInfo();
 };
@@ -71,6 +75,8 @@ struct FQuad
 	FQuad(bool blocked, int h, int g);
 	FQuad();
 	FVector position;
+	int GridX;
+	int GridY;
 	bool isBlocked;
 	int h;
 	int g;
