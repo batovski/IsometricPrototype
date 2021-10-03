@@ -5,4 +5,4 @@ Currently implemented:
  - A* pathfinding for Hex map iwth optimization modifications
  - Day/Night cycle 
 
-(/Saved/Screenshots/Windows/Build1.png)
+![Build Screenshot](/Build1.png)
